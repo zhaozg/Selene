@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 project(Selene)
 
-set(LUA_PC_CFG "lua;lua5.3;lua5.2;lua5.1" CACHE STRING "pkg-config Lua configuration file (or files, separated by ;)")
+set(LUA_PC_CFG "luajit;lua;lua5.3;lua5.2;lua5.1" CACHE STRING "pkg-config Lua configuration file (or files, separated by ;)")
 
 find_package(PkgConfig)
 if(PKG_CONFIG_EXECUTABLE)
@@ -22,9 +22,11 @@ if(${LUA_INCLUDE_DIR})
 endif()
 
 include_directories(${LUA_INCLUDE_DIR})
+include_directories("/usr/local/include/luajit-2.1")
 
 if(APPLE)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -std=c++11 -stdlib=libc++")
+  set(CMAKE_EXE_LINKER_FLAGS "-L/usr/local/lib -lluajit-5.1")
 elseif(UNIX)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -std=c++11")
 elseif(WIN32)

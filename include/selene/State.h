@@ -11,6 +11,46 @@
 #include <vector>
 
 namespace sel {
+
+#if LUA_VERSION_NUM == 501
+
+#define lua_getfield(L, i, k) \
+  (lua_getfield((L), (i), (k)), lua_type((L), -1))
+
+inline int luaL_getsubtable (lua_State *L, int i, const char *name) {
+  int abs_i = lua_absindex(L, i);
+  luaL_checkstack(L, 3, "not enough stack slots");
+  lua_pushstring(L, name);
+  lua_gettable(L, abs_i);
+  if (lua_istable(L, -1))
+    return 1;
+  lua_pop(L, 1);
+  lua_newtable(L);
+  lua_pushstring(L, name);
+  lua_pushvalue(L, -2);
+  lua_settable(L, abs_i);
+  return 0;
+}
+inline void luaL_requiref (lua_State *L, const char *modname,
+                           lua_CFunction openf, int glb) {
+  luaL_checkstack(L, 3, "not enough stack slots available");
+  luaL_getsubtable(L, LUA_REGISTRYINDEX, "_LOADED");
+  if (lua_getfield(L, -1, modname) == LUA_TNIL) {
+    lua_pop(L, 1);
+    lua_pushcfunction(L, openf);
+    lua_pushstring(L, modname);
+    lua_call(L, 1, 1);
+    lua_pushvalue(L, -1);
+    lua_setfield(L, -3, modname);
+  }
+  if (glb) {
+    lua_pushvalue(L, -1);
+    lua_setglobal(L, modname);
+  }
+  lua_replace(L, -2);
+}
+#endif
+
 class State {
 private:
     lua_State *_l;
@@ -90,13 +130,7 @@ public:
 
     void OpenLib(const std::string& modname, lua_CFunction openf) {
         ResetStackOnScopeExit savedStack(_l);
-#if LUA_VERSION_NUM >= 502
         luaL_requiref(_l, modname.c_str(), openf, 1);
-#else
-        lua_pushcfunction(_l, openf);
-        lua_pushstring(_l, modname.c_str());
-        lua_call(_l, 1, 0);
-#endif
     }
 
     void HandleExceptionsPrintingToStdOut() {

@@ -159,9 +159,49 @@ inline T _check_get(_id<T&&>, lua_State *l, const int index) {
     return _check_get(_id<T>{}, l, index);
 }
 
+#if LUA_VERSION_NUM==501
+extern "C" {
+inline
+lua_Integer lua_tointegerx (lua_State *L, int i, int *isnum)
+{
+  int ok = 0;
+  lua_Number n = lua_tonumberx(L, i, &ok);
+  if (ok) {
+    if (n == (lua_Integer)n) {
+      if (isnum)
+        *isnum = 1;
+      return (lua_Integer)n;
+    }
+  }
+  if (isnum)
+    *isnum = 0;
+  return 0;
+}
+
+typedef size_t lua_Unsigned;
+
+inline
+void lua_pushunsigned(lua_State* L, lua_Unsigned n)
+{
+  lua_pushinteger((L), (lua_Integer)(n));
+}
+
+inline
+lua_Unsigned lua_tounsignedx(lua_State *L, int i, int *is)
+{
+  return lua_tointegerx(L, i, is);
+}
+
+#define lua_tounsigned(L, i) \
+  lua_tounsignedx((L), (i), NULL)
+#define luaL_checkunsigned(L, a) \
+  ((lua_Unsigned)luaL_checkinteger((L), (a)))
+#define luaL_optunsigned(L, a, d) \
+  ((lua_Unsigned)luaL_optinteger((L), (a), (lua_Integer)(d)))
+}
+#endif
 
 inline int _check_get(_id<int>, lua_State *l, const int index) {
-#if LUA_VERSION_NUM >= 502
     int isNum = 0;
     auto res = static_cast<int>(lua_tointegerx(l, index, &isNum));
     if(!isNum){
@@ -175,23 +215,20 @@ inline int _check_get(_id<int>, lua_State *l, const int index) {
         };
     }
     return res;
-#else
-#error "Not supported for Lua versions <5.2"
-#endif
 }
 
 inline unsigned int _check_get(_id<unsigned int>, lua_State *l, const int index) {
     int isNum = 0;
 #if LUA_VERSION_NUM >= 503
-    auto res = static_cast<unsigned>(lua_tointegerx(l, index, &isNum));
+    unsigned res = static_cast<unsigned>(lua_tointegerx(l, index, &isNum));
     if(!isNum) {
         throw GetParameterFromLuaTypeError{
             [](lua_State *l, int index){luaL_checkinteger(l, index);},
             index
         };
     }
-#elif LUA_VERSION_NUM >= 502
-    auto res = static_cast<unsigned>(lua_tounsignedx(l, index, &isNum));
+#elif LUA_VERSION_NUM >= 501
+    unsigned res = static_cast<unsigned>(lua_tounsignedx(l, index, &isNum));
     if(!isNum) {
         throw GetParameterFromLuaTypeError{
             [](lua_State *l, int index){luaL_checkunsigned(l, index);},

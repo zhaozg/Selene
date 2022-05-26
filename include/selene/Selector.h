@@ -38,6 +38,18 @@
 # define REF_QUAL_LVALUE
 #endif
 
+#if LUA_VERSION_NUM==501
+#define lua_pushglobaltable(L) \
+  lua_pushvalue((L), LUA_GLOBALSINDEX)
+
+inline
+int lua_absindex (lua_State *L, int i) {
+  if (i < 0 && i > LUA_REGISTRYINDEX)
+    i += lua_gettop(L) + 1;
+  return i;
+}
+#endif
+
 namespace sel {
 class State;
 class Selector {
@@ -135,7 +147,7 @@ private:
         lua_replace(_state, handler_index);
 #else
         lua_pushvalue(_state, func_index);
-        lua_push_value(_state, handler_index);
+        lua_pushvalue(_state, handler_index);
         lua_replace(_state, func_index);
         lua_replace(_state, handler_index);
 #endif

@@ -14,6 +14,14 @@ struct BaseFun {
     virtual int Apply(lua_State *state) = 0;
 };
 
+#if LUA_VERSION_NUM == 501
+inline
+const char *lua51_pushlstring (lua_State *L, const char *s, size_t len) {
+  lua_pushlstring(L, len > 0 ? s : "", len);
+  return lua_tostring(L, -1);
+}
+#endif
+
 namespace detail {
 
 inline int _lua_dispatcher(lua_State *l) {
@@ -27,8 +35,13 @@ inline int _lua_dispatcher(lua_State *l) {
         raiseParameterConversionError = e.checked_get;
         erroneousParameterIndex = e.index;
     } catch (GetUserdataParameterFromLuaTypeError & e) {
+#if LUA_VERSION_NUM == 501
+        wrong_meta_table = lua51_pushlstring(
+            l, e.metatable_name.c_str(), e.metatable_name.length());
+#else
         wrong_meta_table = lua_pushlstring(
             l, e.metatable_name.c_str(), e.metatable_name.length());
+#endif
         erroneousParameterIndex = e.index;
     } catch (std::exception & e) {
         lua_pushstring(l, e.what());
